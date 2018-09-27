@@ -244,4 +244,98 @@ if kaoriya#switch#enabled('disable-go-extra')
   let &rtp = join(filter(split(&rtp, ','), 'v:val !~ "[/\\\\]plugins[/\\\\]golang$"'), ',')
 endif
 
+
+
+
+
+"-----------------------------------------------------------------------------------------------
+"　自分用の設定
+
+"python3のdllパスの指定
+set pythonthreedll=C:\Users\kohei\Anaconda3\pkgs\python-3.6.6-hea74fb7_0\python36.dll
+
+"エンコード設定
+set fileencoding=utf-8
+autocmd BufRead *.{h,cpp,py} set fenc=utf-8
+autocmd BufWrite *.{h,cpp,py} set fenc=utf-8
+
+" Vim終了時に現在のセッションを保存する
+au VimLeave * mks!  ~/vimsession
+
+"引数なし起動の時、前回のsessionを復元
+autocmd VimEnter * nested if @% == '' && s:GetBufByte() == 0 | source ~/vimsession | endif
+function! s:GetBufByte()
+    let byte = line2byte(line('$') + 1)
+    if byte == -1
+        return 0
+    else
+        return byte - 1
+    endif
+endfunction
+
+" Vim終了時に現在のセッションを保存する
+au VimLeave * mks!  ~/vimsession
+
+"引数なし起動の時、前回のsessionを復元
+autocmd VimEnter * nested if @% == '' && s:GetBufByte() == 0 | source ~/vimsession | endif
+function! s:GetBufByte()
+    let byte = line2byte(line('$') + 1)
+    if byte == -1
+        return 0
+    else
+        return byte - 1
+    endif
+endfunction
+
+" dein----------------------------------------------------------------------------
+if &compatible
+  set nocompatible
+endif
+set runtimepath+=$VIM/.vim/dein/repos/github.com/Shougo/dein.vim
+
+call dein#begin(expand('$VIM/.vim/dein'))
+
+call dein#add('Shougo/dein.vim')
+call dein#add('Shougo/vimproc.vim', {'build': 'make'})
+
+call dein#add('Shougo/neocomplete.vim')
+call dein#add('Shougo/neomru.vim')
+call dein#add('Shougo/neosnippet.vim')
+call dein#add('Shougo/neosnippet-snippets')
+call dein#add('Shougo/Unite.vim')
+call dein#add('davidhalter/jedi-vim')
+call dein#add('scrooloose/nerdtree')
+
+call dein#end()
+
+if dein#check_install()
+  call dein#install()
+endif
+
+""""""""""""""""""""""""""""""
+" Unit.vimの設定
+""""""""""""""""""""""""""""""
+" バッファ一覧
+noremap <C-P> :Unite buffer<CR>
+" ファイル一覧
+noremap <C-N> :Unite -buffer-name=file file<CR>
+" 最近使ったファイルの一覧
+noremap <C-U><C-U> :Unite file_mru<CR>
+" sourcesを「今開いているファイルのディレクトリ」とする
+""""""""""""""""""""""""""""""
+
+
+"jediのタブキー補完の設定
+let g:SuperTabContextDefaultCompletionType = "context"
+let g:SuperTabDefaultCompletionType = "<c-n>"
+let g:jedi#popup_select_first = 0 "1個目の候補が入力されるっていう設定を解除
+let g:jedi#popup_on_dot = 0 " .を入力すると補完が始まるという設定を解除
+let g:jedi#goto_command = "<leader>d"
+let g:jedi#goto_assignments_command = "<leader>g"
+let g:jedi#goto_definitions_command = ""
+let g:jedi#documentation_command = "K"
+let g:jedi#usages_command = "<leader>n"
+let g:jedi#rename_command = "<leader>R" "quick-runと競合しないように大文字Rに変更. READMEだと<leader>r
+autocmd FileType python setlocal completeopt-=preview "ポップアップを表示しない
+
 " Copyright (C) 2009-2016 KaoriYa/MURAOKA Taro
