@@ -1,0 +1,162 @@
+# HG changeset patch
+# Parent fde93adeda8d91c54211d002010c4476c27e8dcc
+implement 'transparency' for Windows GUI
+
+diff --git a/src/gui_w32.c b/src/gui_w32.c
+index 611902557..27c9561c9 100644
+--- a/src/gui_w32.c
++++ b/src/gui_w32.c
+@@ -40,6 +40,13 @@ static int s_directx_load_attempted = 0;
+ static int gui_mswin_get_menu_height(int fix_window);
+ #endif
+ 
++/*
++ * For Transparent Window.
++ */
++typedef DWORD (WINAPI *FWINLAYER)(HWND hwnd, DWORD crKey, BYTE bAlpha,
++	DWORD dwFlags);
++static void w32_set_transparency(HWND hwnd, BYTE bAlpha);
++
+ #if defined(FEAT_DIRECTX) || defined(PROTO)
+     int
+ directx_enabled(void)
+@@ -5379,6 +5386,8 @@ gui_mch_init(void)
+     if (s_hwnd == NULL)
+ 	return FAIL;
+ 
++    w32_set_transparency(s_hwnd, 255);
++
+ #ifdef GLOBAL_IME
+     global_ime_init(atom, s_hwnd);
+ #endif
+@@ -5737,6 +5746,44 @@ gui_mch_set_sp_color(guicolor_T color)
+     gui.currSpColor = color;
+ }
+ 
++    void
++w32_set_transparency(HWND hwnd, BYTE bAlpha)
++{
++    FWINLAYER pfLayer;
++    HANDLE hDll;
++
++    if (!hwnd)
++	hwnd = s_hwnd;
++
++    /* Turn off transpareny */
++    if (bAlpha == 255)
++    {
++	SetWindowLong(hwnd, GWL_EXSTYLE, ~WS_EX_LAYERED &
++		GetWindowLong(hwnd, GWL_EXSTYLE));
++	return;
++    }
++
++    /* Obtain pointer to function set transparecy rate */
++    if (!(hDll = LoadLibrary("user32.dll")))
++	return;
++    pfLayer = (FWINLAYER)GetProcAddress(hDll, "SetLayeredWindowAttributes");
++
++    if (pfLayer)
++    {
++	SetWindowLong(hwnd, GWL_EXSTYLE, WS_EX_LAYERED |
++		GetWindowLong(hwnd, GWL_EXSTYLE));
++	pfLayer(hwnd, 0, bAlpha, LWA_ALPHA);
++    }
++
++    FreeLibrary(hDll);
++}
++
++    void
++gui_mch_set_transparency(int alpha)
++{
++    w32_set_transparency(NULL, (BYTE)alpha);
++}
++
+ #if defined(FEAT_MBYTE) && defined(FEAT_MBYTE_IME)
+ /*
+  * Multi-byte handling, originally by Sung-Hoon Baek.
+diff --git a/src/option.c b/src/option.c
+index f9d273479..a81f5bfed 100644
+--- a/src/option.c
++++ b/src/option.c
+@@ -2861,6 +2861,15 @@ static struct vimoption options[] =
+ 			    {(char_u *)0L, (char_u *)0L}
+ #endif
+ 			    SCRIPTID_INIT},
++    {"transparency", "tra", P_NUM|P_VI_DEF,
++#ifdef USE_TRANSPARENCY
++			    (char_u *)&p_transparency, PV_NONE,
++			    {(char_u *)255L, (char_u *)0L}
++#else
++			    (char_u *)NULL, PV_NONE,
++			    {(char_u *)0L, (char_u *)0L}
++#endif
++			    SCRIPTID_INIT},
+     {"ttimeout",    NULL,   P_BOOL|P_VI_DEF|P_VIM,
+ 			    (char_u *)&p_ttimeout, PV_NONE,
+ 			    {(char_u *)FALSE, (char_u *)0L} SCRIPTID_INIT},
+@@ -8875,6 +8884,15 @@ set_num_option(
+     }
+ #endif
+ 
++#ifdef USE_TRANSPARENCY
++    else if ((long *)varp == &p_transparency)
++    {
++	if (p_transparency < 1 || p_transparency > 255)
++	    p_transparency = 255;
++	gui_mch_set_transparency(p_transparency);
++    }
++#endif
++
+     else if (pp == &curbuf->b_p_iminsert)
+     {
+ 	if (curbuf->b_p_iminsert < 0 || curbuf->b_p_iminsert > B_IMODE_LAST)
+diff --git a/src/option.h b/src/option.h
+index 2c6aeef03..69ebc5629 100644
+--- a/src/option.h
++++ b/src/option.h
+@@ -866,6 +866,9 @@ EXTERN char_u	*p_titlestring;	/* 'titlestring' */
+ #ifdef FEAT_INS_EXPAND
+ EXTERN char_u	*p_tsr;		/* 'thesaurus' */
+ #endif
++#ifdef USE_TRANSPARENCY
++EXTERN long	p_transparency;	/* 'transparency'*/
++#endif
+ EXTERN int	p_ttimeout;	/* 'ttimeout' */
+ EXTERN long	p_ttm;		/* 'ttimeoutlen' */
+ EXTERN int	p_tbi;		/* 'ttybuiltin' */
+diff --git a/src/os_win32.h b/src/os_win32.h
+index 5017f532e..21f35a76b 100644
+--- a/src/os_win32.h
++++ b/src/os_win32.h
+@@ -81,6 +81,7 @@
+ 
+ #ifdef FEAT_GUI_W32
+ # define NO_CONSOLE		/* don't included console-only code */
++# define USE_TRANSPARENCY
+ #endif
+ 
+ /* toupper() is not really broken, but it's very slow.	Probably because of
+diff --git a/src/proto/gui_w32.pro b/src/proto/gui_w32.pro
+index 3c99f97e5..3ff40405a 100644
+--- a/src/proto/gui_w32.pro
++++ b/src/proto/gui_w32.pro
+@@ -71,6 +71,7 @@ void gui_mch_set_font(GuiFont font);
+ void gui_mch_set_fg_color(guicolor_T color);
+ void gui_mch_set_bg_color(guicolor_T color);
+ void gui_mch_set_sp_color(guicolor_T color);
++void gui_mch_set_transparency(int alpha);
+ void im_set_font(LOGFONT *lf);
+ void im_set_position(int row, int col);
+ void im_set_active(int active);
+diff --git a/src/testdir/gen_opt_test.vim b/src/testdir/gen_opt_test.vim
+index 019c757df..f4497b169 100644
+--- a/src/testdir/gen_opt_test.vim
++++ b/src/testdir/gen_opt_test.vim
+@@ -126,6 +126,7 @@ let test_values = {
+       \ 'term': [[], []],
+       \ 'toolbar': [['', 'icons', 'text'], ['xxx']],
+       \ 'toolbariconsize': [['', 'tiny', 'huge'], ['xxx']],
++      \ 'transparency': [['0', '128', '255'], ['xxx']],
+       \ 'ttymouse': [['', 'xterm'], ['xxx']],
+       \ 'ttytype': [[], []],
+       \ 'viewoptions': [['', 'cursor', 'unix,slash'], ['xxx']],
