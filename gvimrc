@@ -174,4 +174,6 @@ if has('printer')
   endif
 endif
 
+au GUIEnter * simalt ~x
+
 " Copyright (C) 2009-2016 KaoriYa/MURAOKA Taro

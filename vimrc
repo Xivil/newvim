@@ -4,7 +4,7 @@ scriptencoding utf-8
 " An example for a Japanese version vimrc file.
 " 日本語版のデフォルト設定ファイル(vimrc) - Vim 7.4
 "
-" Last Change: 23-Mar-2016.
+" Last Change: 28-Sep-2018.
 " Maintainer:  MURAOKA Taro <koron.kaoriya@gmail.com>
 "
 " 解説:
@@ -287,6 +287,9 @@ function! s:GetBufByte()
     endif
 endfunction
 
+"保存ショートカット
+imap <C-S> <C-O>:w<CR>
+
 " dein----------------------------------------------------------------------------
 if &compatible
   set nocompatible
@@ -305,6 +308,7 @@ call dein#add('Shougo/neosnippet-snippets')
 call dein#add('Shougo/Unite.vim')
 call dein#add('davidhalter/jedi-vim')
 call dein#add('scrooloose/nerdtree')
+call dein#add('kana/vim-smartinput')
 
 call dein#end()
 
